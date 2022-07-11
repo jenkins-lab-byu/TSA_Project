@@ -1,0 +1,135 @@
+---
+title: "tissue_specific_aging"
+author: "Kelaney Stalker"
+date: "5/6/2022"
+output: html_document
+---
+
+```{r}
+
+#minfi code
+#if using 450k data, need to change. minfi built for epic
+
+library(minfi)
+baseDir<-"CHANGE TO BASE DIRECTORY. ALWAYS KEEP QUOTATIONS."
+RGset<-read.metharray.exp(base=baseDir,targets=NULL,recursive=TRUE)
+
+Mset<-preprocessSWAN(RGset)
+ratioset<-ratioConvert(Mset,what="both",keepCN=F)
+z<-getBeta(ratioset)
+head(z)
+
+#next merge them
+
+m<-read.csv("/Users/timjenkinslab/Desktop/kelaney/tissue_specific_aging/tsa_merge.csv")
+head(m)
+B<-t(z)
+rownames(m)<-m$rn
+m$rn<-NULL
+head(m)
+#do not do head(B) because it will be huge
+k<-merge(m,B,by=0)
+head(k[,c(1:10)])
+
+#now format
+
+rownames(k)<-k$Row.names
+k$Row.names<-NULL
+head(k[,c(1:10)])
+K<-t(k)
+head(K[,c(1:10)])
+
+#save as RDS and then annotate 
+
+saveRDS(K, file = "/Users/timjenkinslab/Desktop/kelaney/tissue_specific_aging/tsa_v2.rds")
+B<-readRDS("/Users/timjenkinslab/Desktop/kelaney/tissue_specific_aging/tsa_v2.rds")
+ann<-readRDS("/Users/timjenkinslab/Desktop/kelaney/Epic_Annotation.rds")
+B<-merge(ann, B, by=0)
+rownames(B)<-B$Row.names
+B$Row.names<-NULL
+head(B[,c(1:10)])
+
+#save
+write.csv(K, "/Users/timjenkinslab/Desktop/kelaney/tissue_specific_aging/tsa_v2.csv")
+
+```
+
+```{r}
+
+#scatterplotting
+
+j<-read.csv("/Users/timjenkinslab/Desktop/kelaney/tissue_specific_aging/jenkinsfinal.csv")
+h<-read.csv("/Users/timjenkinslab/Desktop/kelaney/tissue_specific_aging/horvathfinal.csv")
+
+plot(j$Age,j$Jenkins, col=c("blueviolet"), pch=16)
+abline(lm(j$Jenkins~j$Age), lty=6)
+summary(lm(j$Jenkins~j$Age))
+
+plot(h$Age,h$Horvath, col=c("cornflowerblue"), pch=16)
+abline(lm(h$Horvath~h$Age), lty=6)
+summary(lm(h$Horvath~h$Age))
+```
+
+```{r}
+
+oligosperm<-subset(j, Sample_Group== "Sperm:Oligo")
+head(oligosperm)
+
+normosperm<-subset(j, Sample_Group == "Sperm:High count")
+head(normosperm)
+
+boxplot(oligosperm$GLAD, normosperm$GLAD, xlab= "Oligo v Normo", ylab="Difference in GLAD values", main="Sperm")
+
+oligoblood<-subset(h, Sample_Group== "Blood:Oligo")
+head(oligoblood)
+normoblood<-subset(h, Sample_Group == "Blood:High count")
+head(normoblood)
+
+t.test(oligoblood$GLAD, normoblood$GLAD)
+```
+
+```{r}
+
+#boxplots 
+
+boxplot(oligosperm$GLAD, normosperm$GLAD, col=c("lavender", "aliceblue"))
+boxplot(oligoblood$GLAD.equiv, normoblood$GLAD.equiv, col=c("lavender", "aliceblue"))
+boxplot(oligosperm$diff_in_pred_age, normosperm$diff_in_pred_age, col=c("lavender", "aliceblue"))
+```
+
+```{r}
+# how to bar plot in ggplot 
+
+ggplot(otwo, aes(x=Sample_Name, y=pred_age, fill=Sample_Group))+
+geom_bar(stat= "identity", position = "dodge", alpha = 0.5)+
+theme_bw()+
+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ # this removes grid background
+theme(axis.text.x=element_text(angle = 90, vjust = 0.5))+ # this rotates labels 90 degrees
+labs(title = "Oligospermic Differences in Predicted Ages", x = "", y= "Predicted Age")
+
+```
+
+```{r}
+
+#how to bar plot in base r
+bo<-read.csv("~/Desktop/kelaney/tissue_specific_aging/base_oligo.csv",header=T)
+head(bo)
+
+rownames(bo)<-bo$Sample_Name
+bo$Sample_Name<-NULL
+bo
+b0<-t(bo)
+
+barplot(b0)
+barplot(b0, beside=T)
+barplot(b0, beside=T, col=rgb(.5,.8,.1))
+barplot(b0, beside=T, col=c(rgb(.5,.8,.1),rgb(.1,.2,.3)))
+barplot(b0, beside=T, col=c(rgb(.5,.8,.1),rgb(.1,.2,.3)))
+legend("topright",c("Blood","Sperm"),pch=c(15,15),col=c(rgb(.5,.8,.1),rgb(.1,.2,.3)),bty="n")
+
+barplot(b0, beside=T, col=c(rgb(.5,.8,.1),rgb(.1,.2,.3)),ylim=c(0,60))
+legend("topright",c("Blood","Sperm"),pch=c(15,15),col=c(rgb(.5,.8,.1),rgb(.1,.2,.3)),bty="n")
+
+
+
+
